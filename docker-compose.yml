@@ -1,0 +1,95 @@
+version: '3.7'
+
+services:
+  redis_db:
+    image: redis:6.2-alpine
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - "6379:6379"
+    networks:
+      - flat-rock-project
+
+  ecommerce_db:
+    image: mysql:8.0
+    cap_add:
+      - SYS_NICE
+    restart: always
+    environment:
+      - MYSQL_DATABASE=ecommerce
+      - MYSQL_ROOT_PASSWORD=soso1234
+      - MYSQL_PASSWORD=soso8591
+      - MYSQL_USER=soso
+    ports:
+      - '9306:3306'
+    networks:
+      - flat-rock-project
+    volumes:
+      - mysql:/var/lib/mysql
+
+  eureka:
+    image: dmartyoflishvili/eureka:0.0.1-SNAPSHOT
+    ports:
+      - "8761:8761"
+    networks:
+      - flat-rock-project
+
+  api-gateway:
+    image: dmartyoflishvili/api-gateway:0.0.1-SNAPSHOT
+    ports:
+      - "8765:8765"
+    networks:
+      - flat-rock-project
+    depends_on:
+      - eureka
+    environment:
+      - EUREKA=eureka
+
+  notification-service:
+    image: dmartyoflishvili/notification-service:0.0.1-SNAPSHOT
+    ports:
+      - "8500:8500"
+    networks:
+      - flat-rock-project
+    depends_on:
+      - eureka
+    environment:
+      - EUREKA=eureka
+      - REDIS_HOST=redis_db
+      - SENDGRID_API=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
+
+
+  single-sign-on:
+    image: dmartyoflishvili/single-sign-on:0.0.1-SNAPSHOT
+    ports:
+      - "8400:8400"
+    networks:
+      - flat-rock-project
+    depends_on:
+      - eureka
+    environment:
+      - DB_USER=soso
+      - DB_PASSWORD=soso8591
+      - DB_URL=jdbc:mysql://ecommerce_db:9306/ecommerce?allowPublicKeyRetrieval=true&useSSL=false
+      - EUREKA=eureka
+      - REDIS_HOST=redis_db
+
+  product-service:
+    image: dmartyoflishvili/product-service:0.0.1-SNAPSHOT
+    ports:
+      - "8600:8600"
+    networks:
+      - flat-rock-project
+    depends_on:
+      - eureka
+      - products_db
+    environment:
+      - DB_USER=soso
+      - DB_PASSWORD=soso8591
+      - DB_URL=jdbc:mysql://ecommerce_db:9306/ecommerce?allowPublicKeyRetrieval=true&useSSL=false
+      - EUREKA=eureka
+      - REDIS_HOST=redis_db
+
+
+networks:
+  flat-rock-project:
